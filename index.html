@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<!-- zoom liberado: pessoas com baixa visão precisam poder ampliar -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nhé é Sé - Desejo de fala</title>
+<style>
+  :root {
+    --panel: #ffffff;
+    --ink: #000000;
+    --card: #efefef;
+    --btn: #e4e4e4;
+    --btn-press: #cfcfcf;
+    --bg-app: #1c1c1c;
+    --playing: #1e7e34;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg-app); }
+  .app-wrapper {
+    display: flex; flex-direction: column;
+    height: 100vh; height: 100dvh;
+    max-width: 600px; margin: 0 auto;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    overflow: hidden;
+  }
+  button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
+  button:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+
+  /* ===== PAINEL FIXO BRANCO ===== */
+  .top-panel {
+    flex: 0 0 auto;
+    background: var(--panel);
+    color: var(--ink);
+    border-radius: 0 0 22px 22px;
+    padding: calc(12px + env(safe-area-inset-top)) 12px 16px;
+  }
+  .exhibition-title {
+    margin: 0 0 12px; font-size: 0.85em; font-weight: 400;
+    letter-spacing: 0.04em; text-transform: uppercase; text-align: center;
+  }
+
+  /* ===== CARTÃO-BOTÃO: capa + título + pílula ===== */
+  .card-btn {
+    width: 100%;
+    display: flex; align-items: center; gap: 14px;
+    border: none; border-radius: 20px;
+    background: var(--card); color: var(--ink);
+    padding: 10px; text-align: left; cursor: pointer;
+    transition: transform 0.08s ease, background 0.15s ease;
+  }
+  .card-btn:active { transform: scale(0.98); background: #e2e2e2; }
+
+  .cover-wrap { position: relative; flex-shrink: 0; }
+  .cover-wrap.hidden { display: none; }
+  .cover-thumb {
+    display: block; width: 118px; height: 118px;
+    border-radius: 14px; object-fit: cover; background: #ddd;
+  }
+  .cover-badge {
+    position: absolute; bottom: 6px; right: 6px;
+    width: 34px; height: 34px; border-radius: 50%;
+    background: #000; color: #fff; font-weight: 700; font-size: 1.05em;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-info {
+    min-width: 0; flex: 1;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+  }
+  .track-title {
+    font-weight: 700; font-size: 1.4em; line-height: 1.15;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    overflow: hidden; overflow-wrap: anywhere;
+  }
+  .play-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--ink); color: #fff;
+    border-radius: 999px; padding: 9px 18px;
+    font-weight: 700; font-size: 1.05em;
+    transition: background 0.15s ease;
+  }
+  .play-pill .pill-icon { font-size: 0.95em; line-height: 1; }
+  .card-btn.is-playing .play-pill { background: var(--playing); }
+
+  .time-row {
+    margin: 10px 4px 12px;
+    font-size: 1.05em; font-variant-numeric: tabular-nums; text-align: center;
+  }
+
+  /* ===== ANTERIOR / PRÓXIMA ===== */
+  .nav-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .nav-btn {
+    flex: 1; border: none; border-radius: 12px;
+    background: var(--btn); color: var(--ink);
+    font-weight: 700; font-size: 17px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 14px 6px; cursor: pointer;
+  }
+  .nav-btn:active { background: var(--btn-press); }
+  .nav-btn .icon { font-size: 1.25em; line-height: 1; }
+
+  /* ===== VOLTAR 15s / VELOCIDADE / AVANÇAR 15s ===== */
+  .skip-row { display: flex; gap: 8px; }
+  .btn-skip {
+    flex: 1; border: none; border-radius: 12px;
+    background: var(--btn); color: var(--ink);
+    font-weight: 700; font-size: 17px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 13px 6px; cursor: pointer;
+  }
+  .btn-skip:active { background: var(--btn-press); }
+  .btn-skip .icon { font-size: 1.3em; line-height: 1; }
+  .speed-btn { background: #fff; box-shadow: inset 0 0 0 2px var(--ink); }
+
+  /* ===== LISTA ROLÁVEL ===== */
+  .playlist-scroll {
+    flex: 1 1 auto; overflow-y: auto;
+    padding: 20px 14px calc(16px + env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+  }
+  .playlist { list-style: none; margin: 0; padding: 0; }
+  .playlist li { margin-bottom: 8px; }
+  .track-item {
+    width: 100%; display: flex; align-items: center; gap: 14px;
+    padding: 12px 14px; border: 2px solid transparent; border-radius: 12px;
+    background: transparent; color: #fff; text-align: left; cursor: pointer;
+  }
+  .track-item:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  .track-item-num {
+    font-weight: 700; font-size: 1.3em;
+    min-width: 36px; height: 36px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; border-radius: 50%;
+  }
+  .track-item-title {
+    font-size: 1.3em; min-width: 0; flex: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .track-item[aria-current="true"] { border-color: #fff; background: rgba(255,255,255,0.10); }
+  .track-item[aria-current="true"] .track-item-num { background: #fff; color: #000; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="app-wrapper">
+
+  <div class="top-panel">
+    <h1 class="exhibition-title">Nhé é Sé - Desejo de fala</h1>
+
+    <!-- cartão inteiro = play/pause. Conteúdo interno escondido do leitor de tela;
+         o nome do botão vem do aria-label, que muda entre Reproduzir/Pausar. -->
+    <button type="button" class="card-btn" id="playBtn" aria-label="Reproduzir">
+      <span class="cover-wrap" id="coverWrap" aria-hidden="true">
+        <img class="cover-thumb" id="coverImage" src="" alt="" decoding="async">
+        <span class="cover-badge" id="coverBadge"></span>
+      </span>
+      <span class="card-info" aria-hidden="true">
+        <span class="track-title" id="trackLabel">—</span>
+        <span class="play-pill">
+          <span class="pill-icon" id="playIcon">▶</span>
+          <span id="playLabel">Tocar</span>
+        </span>
+      </span>
+    </button>
+
+    <div class="time-row">
+      <span id="timeVisual" aria-hidden="true">00:00 / 00:00</span>
+      <span class="sr-only" id="timeSr">Tempo: 00:00 de 00:00</span>
+    </div>
+
+    <div class="nav-row">
+      <button type="button" class="nav-btn" id="prevBtn" aria-label="Faixa anterior">
+        <span class="icon" aria-hidden="true">⏮</span><span aria-hidden="true">Anterior</span>
+      </button>
+      <button type="button" class="nav-btn" id="nextBtn" aria-label="Próxima faixa">
+        <span aria-hidden="true">Próxima</span><span class="icon" aria-hidden="true">⏭</span>
+      </button>
+    </div>
+
+    <div class="skip-row">
+      <button type="button" class="btn-skip" id="rewindBtn" aria-label="Voltar 15 segundos">
+        <span class="icon" aria-hidden="true">«</span>15s
+      </button>
+      <button type="button" class="btn-skip speed-btn" id="speedBtn">1x</button>
+      <button type="button" class="btn-skip" id="forwardBtn" aria-label="Avançar 15 segundos">
+        15s<span class="icon" aria-hidden="true">»</span>
+      </button>
+    </div>
+  </div>
+
+  <nav class="playlist-scroll" aria-label="Lista de faixas">
+    <ol class="playlist" id="playlist"></ol>
+  </nav>
+
+  <div class="sr-only" id="announcer" aria-live="polite"></div>
+</div>
+
+<script>
+const playlist = [
+  { title: "Boas Vindas!",                    audioUrl: "https://static.wixstatic.com/mp3/3fe01e_2e13aef6c5ca41e884ea478bbb42d646.mp3", coverUrl: "https://static.wixstatic.com/media/3fe01e_5f651cfd799243f19c15f33485f10441~mv2.png" },
+  { title: "Texto curatorial",                audioUrl: "https://static.wixstatic.com/mp3/3fe01e_d1bad34e1e364f229329c310ca5ffb90.mp3", coverUrl: "https://static.wixstatic.com/media/3fe01e_af86c9d6d6924a2c9d9644252d892061~mv2.png" },
+  { title: "Paulo Desana",                    audioUrl: "https://static.wixstatic.com/mp3/3fe01e_21a9f37956854125b82d9ee022319cf0.mp3", coverUrl: "https://static.wixstatic.com/media/3fe01e_6888b0fc76794907a5933672af9cdd0e~mv2.png" },
+  { title: "Ziel Karapoto & Olinda Tupinambá", audioUrl: "https://static.wixstatic.com/mp3/3fe01e_b5ff9d872c574ce5ba2fd26b70e8b2f5.mp3", coverUrl: "https://static.wixstatic.com/media/3fe01e_f91af4667da84ef09c06407ba83a3d58~mv2.png" },
+  { title: "Vilmone Guarani",                 audioUrl: "https://static.wixstatic.com/mp3/3fe01e_98299c9b0b86487a96be91746f016689.mp3", coverUrl: "https://static.wixstatic.com/media/3fe01e_dbf598355e594da092c439f448254970~mv2.png" },
+  { title: "Mandacaru Karajá",                audioUrl: "https://static.wixstatic.com/mp3/3fe01e_83b0ac4718004619b9b4801c21f2788a.mp3", coverUrl: "https://static.wixstatic.com/media/3fe01e_f903efe5ab084d9b93b7430f9367f06a~mv2.png" },
+  { title: "Glicéria Tupinambá",              audioUrl: "https://static.wixstatic.com/mp3/3fe01e_94fa8b7f84914289b9b623de3d4f172b.mp3", coverUrl: "https://static.wixstatic.com/media/3fe01e_849d7e71650347738dccc5644aa10e57~mv2.png" },
+  { title: "Sioduhi Waíkhʉn",                 audioUrl: "https://static.wixstatic.com/mp3/3fe01e_e915b064b8614ed7bb8ff988926bfce5.mp3", coverUrl: "https://static.wixstatic.com/media/3fe01e_7d59798216ff4dce8b6c907277122861~mv2.png" },
+  { title: "Ana Maria Kariri",                audioUrl: "https://static.wixstatic.com/mp3/3fe01e_e5fd762e83d64669bab7ebafc3bed908.mp3", coverUrl: "https://static.wixstatic.com/media/3fe01e_8f06870da43645f3ae718ccd3640fbce~mv2.png" },
+  { title: "Ypituna Pankararu",               audioUrl: "https://static.wixstatic.com/mp3/3fe01e_561a223eaef443708685e441e24be469.mp3", coverUrl: "https://static.wixstatic.com/media/3fe01e_408bcc5ae04941e994d7bdeca1c3fa71~mv2.png" },
+  { title: "Luakam Anambé",                   audioUrl: "https://static.wixstatic.com/mp3/3fe01e_1d731d0c1ebf44ed9948098ad9883a0b.mp3", coverUrl: "https://static.wixstatic.com/media/3fe01e_e7ee28450e9b4f049e49a9cecab13669~mv2.png" },
+  { title: "Mandú",                           audioUrl: "https://static.wixstatic.com/mp3/3fe01e_3f0a9e5b42d5407f9f473d68a5a48a5a.mp3", coverUrl: "https://static.wixstatic.com/media/3fe01e_a156107bf5fd472989c35f0c1f8772b1~mv2.png" },
+  { title: "Kuenan Mayu",                     audioUrl: "https://static.wixstatic.com/mp3/3fe01e_cd85439182ce48f3b7a03874f79f32d2.mp3", coverUrl: "https://static.wixstatic.com/media/3fe01e_a3ccaaccbf2141e8b72974ca1ec88e9f~mv2.png" },
+  { title: "Keyla Palikur",                   audioUrl: "https://static.wixstatic.com/mp3/3fe01e_8f091c8296034f7bafb7b34200b3d2ee.mp3", coverUrl: "https://static.wixstatic.com/media/3fe01e_2922883410b341f698ff8c72381d87bd~mv2.png" }
+];
+
+const SPEEDS = [1, 1.5, 2, 0.75];
+let speedIndex = 0;
+let currentTrack = 0;
+let playing = false;
+
+const audio = new Audio();
+audio.preload = 'metadata';
+
+const $ = (id) => document.getElementById(id);
+const playBtn    = $('playBtn');
+const playIcon   = $('playIcon');
+const playLabel  = $('playLabel');
+const trackLabel = $('trackLabel');
+const cover      = $('coverImage');
+const coverWrap  = $('coverWrap');
+const coverBadge = $('coverBadge');
+const timeVisual = $('timeVisual');
+const timeSr     = $('timeSr');
+const announcer  = $('announcer');
+const playlistEl = $('playlist');
+const speedBtn   = $('speedBtn');
+const rewindBtn  = $('rewindBtn');
+const forwardBtn = $('forwardBtn');
+const prevBtn    = $('prevBtn');
+const nextBtn    = $('nextBtn');
+
+function pad(n) { return String(Math.floor(n)).padStart(2, '0'); }
+function formatTime(s) {
+  if (!isFinite(s) || s < 0) s = 0;
+  return `${pad(s / 60)}:${pad(s % 60)}`;
+}
+
+function updateTime() {
+  const cur = formatTime(audio.currentTime);
+  const dur = formatTime(audio.duration);
+  timeVisual.textContent = `${cur} / ${dur}`;
+  timeSr.textContent = `Tempo: ${cur} de ${dur}`;
+}
+
+function updatePlayButtonName() {
+  const t = playlist[currentTrack];
+  const action = playing ? 'Pausar' : 'Reproduzir';
+  playBtn.setAttribute('aria-label', `${action}: faixa ${currentTrack + 1}, ${t.title}`);
+}
+
+function setPlaying(isPlaying) {
+  playing = isPlaying;
+  playBtn.classList.toggle('is-playing', isPlaying);
+  // a pílula mostra a AÇÃO disponível
+  playIcon.textContent  = isPlaying ? '❚❚' : '▶';
+  playLabel.textContent = isPlaying ? 'Pausar' : 'Tocar';
+  updatePlayButtonName();
+}
+
+function highlightTrack(index) {
+  playlistEl.querySelectorAll('.track-item').forEach((btn, i) => {
+    if (i === index) btn.setAttribute('aria-current', 'true');
+    else btn.removeAttribute('aria-current');
+  });
+}
+
+function loadTrack(index, { autoplay = true, announce = true } = {}) {
+  currentTrack = index;
+  const t = playlist[index];
+  audio.src = t.audioUrl;
+  audio.playbackRate = SPEEDS[speedIndex];
+
+  if (t.coverUrl) {
+    cover.src = t.coverUrl;
+    coverWrap.classList.remove('hidden');
+  } else {
+    cover.removeAttribute('src');
+    coverWrap.classList.add('hidden');
+  }
+  coverBadge.textContent = index + 1;
+  trackLabel.textContent = t.title;
+
+  highlightTrack(index);
+  setPlaying(false);
+  updateTime();
+
+  if (announce) announcer.textContent = `Faixa ${index + 1}: ${t.title}`;
+  if (autoplay) audio.play().catch(() => {});
+}
+
+function setSpeed(index) {
+  speedIndex = ((index % SPEEDS.length) + SPEEDS.length) % SPEEDS.length;
+  const rate = SPEEDS[speedIndex];
+  audio.playbackRate = rate;
+  const label = `${rate}x`.replace('.', ',');
+  speedBtn.textContent = label;
+  speedBtn.setAttribute('aria-label', `Velocidade ${label}. Toque para alterar.`);
+}
+
+function createPlaylist() {
+  playlist.forEach((t, i) => {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'track-item';
+    btn.setAttribute('aria-label', `Faixa ${i + 1}: ${t.title}`);
+    btn.innerHTML = `
+      <span class="track-item-num" aria-hidden="true">${i + 1}</span>
+      <span class="track-item-title" aria-hidden="true"></span>`;
+    btn.querySelector('.track-item-title').textContent = t.title;
+    btn.addEventListener('click', () => loadTrack(i));
+    li.appendChild(btn);
+    playlistEl.appendChild(li);
+  });
+}
+
+function getTrackFromURL() {
+  const n = parseInt(new URLSearchParams(location.search).get('faixa'), 10);
+  return (!isNaN(n) && n >= 1 && n <= playlist.length) ? n - 1 : 0;
+}
+
+window.addEventListener('message', (e) => {
+  const i = e.data && e.data.faixaIndex;
+  if (Number.isInteger(i) && i >= 0 && i < playlist.length) loadTrack(i);
+});
+
+playBtn.addEventListener('click', () => {
+  if (audio.paused) audio.play().catch(() => {});
+  else audio.pause();
+});
+
+rewindBtn.addEventListener('click', () => {
+  audio.currentTime = Math.max(0, audio.currentTime - 15);
+});
+forwardBtn.addEventListener('click', () => {
+  const dur = isFinite(audio.duration) ? audio.duration : audio.currentTime + 15;
+  audio.currentTime = Math.min(dur, audio.currentTime + 15);
+});
+speedBtn.addEventListener('click', () => setSpeed(speedIndex + 1));
+
+prevBtn.addEventListener('click', () => loadTrack((currentTrack - 1 + playlist.length) % playlist.length));
+nextBtn.addEventListener('click', () => loadTrack((currentTrack + 1) % playlist.length));
+
+audio.addEventListener('play',  () => setPlaying(true));
+audio.addEventListener('pause', () => setPlaying(false));
+audio.addEventListener('loadedmetadata', updateTime);
+audio.addEventListener('timeupdate', updateTime);
+audio.addEventListener('ended', () => loadTrack((currentTrack + 1) % playlist.length));
+
+createPlaylist();
+setSpeed(speedIndex);
+loadTrack(getTrackFromURL(), { autoplay: false, announce: false });
+</script>
+</body>
+</html>
